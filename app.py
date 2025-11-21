@@ -20,7 +20,7 @@ def load_data():
 
 df = load_data()
 
-st.title("❤️ Heart Failure Prediction App (Tanpa .pkl, Anti Error)")
+st.title("❤️ Heart Failure Prediction App )")
 st.write("Model dilatih langsung di Streamlit agar tidak terjadi error versi Python.")
 
 # ======================================
