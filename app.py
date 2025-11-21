@@ -1,79 +1,102 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import joblib
 
-# Load models & preprocessing
-preprocess = joblib.load("preprocess.pkl")
-model_logreg = joblib.load("model_logreg.pkl")
-model_rf = joblib.load("model_rf.pkl")
-model_voting = joblib.load("model_voting.pkl")
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.pipeline import Pipeline
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier, VotingClassifier
 
-# Judul
-st.title("❤️ Heart Disease Prediction App")
-st.write("Aplikasi cerdas untuk memprediksi penyakit jantung menggunakan dua model Machine Learning dan Voting Ensemble.")
+# ======================================
+# LOAD DATASET (langsung dari Github kamu)
+# ======================================
+@st.cache_data
+def load_data():
+    df = pd.read_csv("heart.csv")
+    return df
 
-# Sidebar – pilih model
-st.sidebar.header("🔍 Pilih Model Prediksi")
-model_choice = st.sidebar.selectbox(
-    "Pilih model:",
-    ("Logistic Regression", "Random Forest", "Voting Classifier")
+df = load_data()
+
+st.title("❤️ Heart Failure Prediction App (Tanpa .pkl, Anti Error)")
+st.write("Model dilatih langsung di Streamlit agar tidak terjadi error versi Python.")
+
+# ======================================
+# PREPROCESSING + TRAINING LANGSUNG
+# ======================================
+categorical = ["Sex", "ChestPainType", "RestingECG", "ExerciseAngina", "ST_Slope"]
+numeric = ["Age", "RestingBP", "Cholesterol", "FastingBS", "MaxHR", "Oldpeak"]
+
+X = df.drop("HeartDisease", axis=1)
+y = df["HeartDisease"]
+
+preprocess = ColumnTransformer([
+    ("num", StandardScaler(), numeric),
+    ("cat", OneHotEncoder(), categorical)
+])
+
+logreg = LogisticRegression(max_iter=200)
+rf = RandomForestClassifier(n_estimators=200)
+
+voting = VotingClassifier(
+    estimators=[("lr", logreg), ("rf", rf)],
+    voting="soft"
 )
 
-# Input form
-st.header("📥 Masukkan Data Pasien")
+model = Pipeline([
+    ("prep", preprocess),
+    ("model", voting)
+])
 
-age = st.number_input("Age", 20, 100, 50)
+model.fit(X, y)
+
+# ======================================
+# INPUT FORM
+# ======================================
+
+st.subheader("Masukkan Data Pasien")
+
+age = st.number_input("Age", 20, 90, 45)
 sex = st.selectbox("Sex", ["M", "F"])
-cp = st.selectbox("Chest Pain Type", ["TA", "ATA", "NAP", "ASY"])
-chol = st.number_input("Cholesterol", 50, 700, 200)
-thalach = st.number_input("Max Heart Rate", 50, 250, 150)
-restingbp = st.number_input("Resting BP", 80, 200, 120)
-fastingbs = st.selectbox("Fasting Blood Sugar > 120 mg/dl", [0, 1])
-exerciseangina = st.selectbox("Exercise Angina", ["Y", "N"])
-restecg = st.selectbox("Resting ECG", ["Normal", "ST", "LVH"])
-oldpeak = st.number_input("Oldpeak", -2.0, 6.0, 1.0)
-slope = st.selectbox("Slope", ["Up", "Flat", "Down"])
+chest_pain = st.selectbox("Chest Pain Type", ["TA", "ATA", "NAP", "ASY"])
+resting_bp = st.number_input("Resting BP", 80, 200, 120)
+cholesterol = st.number_input("Cholesterol", 100, 600, 200)
+fasting_bs = st.selectbox("Fasting Blood Sugar > 120 mg/dl", [0, 1])
+rest_ecg = st.selectbox("Rest ECG", ["Normal", "ST", "LVH"])
+max_hr = st.number_input("Max HR", 60, 220, 150)
+exercise_angina = st.selectbox("Exercise Angina", ["Y", "N"])
+oldpeak = st.number_input("Oldpeak", 0.0, 10.0, 1.0)
+st_slope = st.selectbox("ST Slope", ["Up", "Flat", "Down"])
 
-# Buat dataframe input user
 input_data = pd.DataFrame({
     "Age": [age],
     "Sex": [sex],
-    "ChestPainType": [cp],
-    "Cholesterol": [chol],
-    "MaxHR": [thalach],
-    "RestingBP": [restingbp],
-    "FastingBS": [fastingbs],
-    "ExerciseAngina": [exerciseangina],
-    "RestingECG": [restecg],
+    "ChestPainType": [chest_pain],
+    "RestingBP": [resting_bp],
+    "Cholesterol": [cholesterol],
+    "FastingBS": [fasting_bs],
+    "RestingECG": [rest_ecg],
+    "MaxHR": [max_hr],
+    "ExerciseAngina": [exercise_angina],
     "Oldpeak": [oldpeak],
-    "ST_Slope": [slope]
+    "ST_Slope": [st_slope]
 })
 
-# Preprocessing
-processed_input = preprocess.transform(input_data)
+# ======================================
+# PREDIKSI
+# ======================================
 
-# Prediksi
-if model_choice == "Logistic Regression":
-    model = model_logreg
-elif model_choice == "Random Forest":
-    model = model_rf
-else:
-    model = model_voting
+if st.button("Prediksi"):
+    pred = model.predict(input_data)[0]
+    prob = model.predict_proba(input_data)[0][1] * 100
 
-prediction = model.predict(processed_input)[0]
+    st.subheader("Hasil Prediksi:")
 
-# Output hasil
-st.header("📊 Hasil Prediksi")
+    if pred == 1:
+        st.error(f"🚨 Pasien Berisiko Tinggi (Probabilitas: {prob:.2f}%)")
+    else:
+        st.success(f"✅ Pasien Tidak Berisiko (Probabilitas: {prob:.2f}%)")
 
-if prediction == 1:
-    st.error("⚠️ Pasien Berisiko Penyakit Jantung")
-else:
-    st.success("✅ Pasien Tidak Berisiko Penyakit Jantung")
-
-# Tampilkan akurasi (dari training)
-st.sidebar.subheader("📈 Akurasi Model")
-st.sidebar.write("Logistic Regression: **±91%**")
-st.sidebar.write("Random Forest: **±94%**")
-st.sidebar.write("Voting Classifier: **±96%** (Model Terbaik)")
 
