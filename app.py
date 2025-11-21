@@ -20,9 +20,12 @@ def load_data():
 
 df = load_data()
 
-st.title("❤️ Heart Failure Prediction App )")
-st.write("Model dilatih langsung di Streamlit agar tidak terjadi error versi Python.")
-
+st.title("❤️ Aplikasi Prediksi Penyakit Jantung )")
+st.write("""
+Aplikasi ini menggunakan Machine Learning untuk memprediksi apakah seorang pasien
+berisiko mengalami penyakit jantung berdasarkan data klinisnya.
+Dataset: Heart Failure Prediction (Kaggle)
+""")
 # ======================================
 # PREPROCESSING + TRAINING LANGSUNG
 # ======================================
